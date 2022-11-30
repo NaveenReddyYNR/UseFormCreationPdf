@@ -1,0 +1,183 @@
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import EditIcon from '@mui/icons-material/Edit';
+import SearchIcon from '@mui/icons-material/Search';
+import { Button, Container, Grid, IconButton, Stack, Typography } from '@mui/material';
+import { makeStyles } from '@mui/styles';
+import { DataGrid } from '@mui/x-data-grid';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getAllTournaments } from '../../../services/tournamentService';
+import { ACCESS_FORBIDDEN, ACCESS_FORBIDDEN_MSG, BAD_REQUEST, ERROR_MSG, GET_SUCCESS, CREATE_SUCCESS } from '../../../constant';
+import ErrorAlert from '../../../components/alert/ErrorAlert';
+import SuccessAlert from '../../../components/alert/SuccessAlert';
+import Loader from '../../../components/loader/Loader';
+
+const useStyles = makeStyles((theme) => ({
+    titleNavigation: {
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        [theme.breakpoints.down('md')]: {
+            fontSize: 7,
+        },
+    },
+    titleButton: {
+        [theme.breakpoints.down('md')]: {
+            fontSize: 7,
+        },
+    }
+}));
+
+const Tournaments = () => {
+    const navigate = useNavigate();
+    const classes = useStyles();
+    const [newData, setNewData] = useState('');
+    const [isError, setError] = useState(false);
+    const [alertMsg, setAlertMsg] = useState('');
+    const [allTournament, setAllTournament] = useState([]);
+    const [isSuccess, setSuccess] = useState(false);
+    const [isLoading, setLoading] = useState(false);
+
+    const downloadPdf = (url) => {
+        window.open(url);
+    }
+    const columns = [
+        { field: 'id', headerName: 'Tournament ID', headerAlign: 'center', align: 'center', width: '150' },
+        { field: 'sportName', headerName: 'Sport', headerAlign: 'center', align: 'center', width: '80' },
+        { field: 'name', headerName: 'Tournament Name', headerAlign: 'center', align: 'center', width: '90' },
+        { field: 'startDate', headerName: 'Start date', headerAlign: 'center', align: 'center', width: '120' },
+        { field: 'endDate', headerName: 'End date', headerAlign: 'center', align: 'center', width: '120' },
+        {
+            field: 'rewardRules', headerName: 'Reward Rules', headerAlign: 'center', align: 'center', width: '120',
+            renderCell: (params) => (
+                <>
+                    {params?.row?.rewardRule ?<Typography style={{ color: 'blue' }}
+                        onClick={() => downloadPdf(params?.row?.rewardRule)}>
+                        Click here</Typography> : 'NOT FOUND'}
+                </>
+            )
+        },
+        {
+            field: 'actions', headerName: 'Actions', headerAlign: 'center', align: 'center',
+            renderCell: (props) => (
+                <IconButton>
+                    <EditIcon onClick={() => handleEditTournament(props.row.id)} />
+                </IconButton>
+            ),
+        },
+    ];
+
+
+
+
+    function NoRowsOverlay() {
+        return (
+            <Stack height="100%" alignItems="center" mt={3}>
+                <SearchIcon />
+                <Typography>No data found</Typography>
+            </Stack>
+        );
+    }
+    const handleCreateTournament = () => {
+        navigate(`/dashboard/tournaments/CreateNewTournament`);
+    }
+    const handleEditTournament = (id) => {
+        navigate(`/dashboard/tournaments/EditTournament/${id}`);
+    }
+
+    const fetchAllTournaments = async () => {
+        const res = await getAllTournaments();
+        console.log('resPonces', res);
+
+        if (res.status === GET_SUCCESS) {
+            setLoading(false);
+            setNewData(res?.data);
+        }
+        if (res.code === BAD_REQUEST) {
+            if (res?.response?.status === ACCESS_FORBIDDEN) {
+                setAlertMsg(res?.response?.data.message || res?.response?.data || ACCESS_FORBIDDEN_MSG);
+                setError(true);
+            }
+            else {
+                setError(true);
+                setAlertMsg(res?.response?.data.message || res?.response?.data?.error || res?.response?.data || ERROR_MSG);
+            }
+        }
+    };
+
+    useEffect(() => {
+        fetchAllTournaments();
+    }, []);
+
+
+    return (
+        <>
+            <Container maxWidth="xl">
+                <Button variant="outlined" onClick={() => navigate(-1)}>
+                    <ChevronLeftIcon />
+                    Back
+                </Button>
+                <Grid item xs={12} sm={6} md={3} mt={'2%'} className={classes.titleNavigation} >
+                    <Typography xs display="flex" alignItems="center" marginBottom={3}>
+                        Home <ChevronRightIcon /> Tournaments
+                    </Typography>
+                    <Grid className={classes.titleButton}>
+                        <Button variant='contained' sx={{ width: 'auto' }} onClick={handleCreateTournament}>Create New Tournament</Button>
+                    </Grid>
+                </Grid>
+                <Grid mt={2}>
+                    <Typography variant="h6">Tournaments</Typography>
+                </Grid>
+            </Container>
+            <Grid style={{ marginTop: '3%' }}>
+                <div
+                    style={{
+                        height: 600,
+                        width: '100%',
+                        border: '1px solid white',
+                        boxShadow: '1px 1px 5px black',
+                        overflowY: 'hidden',
+                        padding: '10px 20px',
+                    }}
+                >
+                    <DataGrid
+                        rows={newData}
+                        columns={columns}
+                        experimentalFeatures={{ newEditingApi: true }}
+                        sx={{
+                            '.MuiDataGrid-columnSeparator': {
+                                display: 'none',
+                            },
+                            '&.MuiDataGrid-root': {
+                                border: 'none',
+                            },
+                            '& .MuiDataGrid-columnHeaderTitle': {
+                                textOverflow: 'clip',
+                                whiteSpace: 'break-spaces',
+                                lineHeight: 1.5,
+                                textAlign: 'center',
+                                fontSize: '12px',
+                            },
+                            '& .MuiDataGrid-columnHeaders': {
+                                backgroundColor: '#EBF8F2',
+                            },
+                        }}
+                        components={{ NoRowsOverlay }}
+                        initialState={{
+                            sorting: {
+                                sortModel: [{ field: 'id', sort: 'desc' }],
+                            },
+                        }}
+                    />
+                </div>
+            </Grid>
+            {<SuccessAlert isSuccess={isSuccess} setSuccess={setSuccess} alertMsg={alertMsg} />}
+            <ErrorAlert isError={isError} setError={setError} alertMsg={alertMsg} />
+            {isLoading && <Loader />}
+        </>
+    )
+}
+
+export default Tournaments;
